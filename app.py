@@ -96,6 +96,22 @@ header { visibility: hidden; }
     color: #666;
     margin-top: 10px;
 }
+
+/* FORCE button background color */
+div.stButton > button {
+    background-color: #3f51b5 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 20px !important;
+    height: 42px !important;
+    font-weight: 600 !important;
+}
+
+/* Hover state */
+div.stButton > button:hover {
+    background-color: #303f9f !important;
+    color: white !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -187,7 +203,12 @@ def generate_followup(question):
 # ------------------------------------------------
 # MAIN CARD
 # ------------------------------------------------
-
+def clear_all():
+    st.session_state.text_key += 1
+    st.session_state.draft = ""
+    st.session_state.initial_story = None
+    st.session_state.chat_history = []
+    
 requirement = st.session_state.draft
 words = len(requirement.split())
 chars = len(requirement)
@@ -234,11 +255,7 @@ with col2:
         st.session_state.chat_history = []
 
 with col3:
-    if st.button("❌ Clear"):
-        st.session_state.text_key += 1   
-        st.session_state.draft = ""
-        st.session_state.initial_story = None
-        st.session_state.chat_history = []
+    st.button("❌ Clear", on_click=clear_all)
 
 with col5:
     if st.button("✨ Generate"):
@@ -278,6 +295,7 @@ if st.session_state.chat_history:
     st.markdown("## 🗂 Follow-up History")
     for i, h in enumerate(st.session_state.chat_history, 1):
         st.markdown(f"**Follow-up {i}:** {h}")
+
 
 
 
