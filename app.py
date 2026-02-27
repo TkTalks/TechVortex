@@ -121,6 +121,7 @@ except Exception:
 # ------------------------------------------------
 # SESSION STATE
 # ------------------------------------------------
+st.session_state.setdefault("text_key", 0)
 st.session_state.setdefault("initial_story", None)
 st.session_state.setdefault("chat_history", [])
 st.session_state.setdefault("followup_input", "")
@@ -277,6 +278,7 @@ if st.session_state.chat_history:
     st.markdown("## 🗂 Follow-up History")
     for i, h in enumerate(st.session_state.chat_history, 1):
         st.markdown(f"**Follow-up {i}:** {h}")
+
 
 
 
