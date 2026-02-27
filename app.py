@@ -13,30 +13,19 @@ st.set_page_config(
 )
 
 # ------------------------------------------------
-# SESSION STATE INIT
-# ------------------------------------------------
-if "draft" not in st.session_state:
-    st.session_state.draft = ""
-
-if "initial_story" not in st.session_state:
-    st.session_state.initial_story = None
-
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-
-if "followup_input" not in st.session_state:
-    st.session_state.followup_input = ""
-
-# ------------------------------------------------
-# CSS (Your original improved slightly)
+# GLOBAL CSS (Screenshot-matched UI)
 # ------------------------------------------------
 st.markdown("""
 <style>
 body {
     background: linear-gradient(135deg, #eef2f3, #e9e4f0);
 }
-header {visibility:hidden;}
+[data-testid="stAppViewContainer"] {
+    background: transparent;
+}
+header { visibility: hidden; }
 
+/* Top Navbar */
 .topbar {
     background: #3f51b5;
     color: white;
@@ -45,8 +34,14 @@ header {visibility:hidden;}
     font-weight: 600;
     display: flex;
     justify-content: space-between;
+    align-items: center;
+}
+.logout {
+    font-size: 14px;
+    cursor: pointer;
 }
 
+/* Main Card */
 .card {
     background: white;
     border-radius: 16px;
@@ -56,6 +51,7 @@ header {visibility:hidden;}
     box-shadow: 0 15px 40px rgba(0,0,0,0.1);
 }
 
+/* Header gradient */
 .card-header {
     background: linear-gradient(90deg, #1e88e5, #43a047);
     color: white;
@@ -63,10 +59,13 @@ header {visibility:hidden;}
     border-radius: 12px;
     font-size: 20px;
     font-weight: 600;
-    display:flex;
-    justify-content:space-between;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
 }
 
+/* Counters */
 .counter {
     background: rgba(255,255,255,0.9);
     color: #333;
@@ -76,12 +75,42 @@ header {visibility:hidden;}
     margin-left: 8px;
 }
 
+/* Buttons */
+.action-btn button {
+    border-radius: 20px !important;
+    font-weight: 600;
+    height: 42px;
+}
+.generate-btn button {
+    background: #3f51b5 !important;
+    color: white !important;
+}
+.secondary-btn button {
+    background: #ede7f6 !important;
+    color: #5e35b1 !important;
+}
+
+/* Footer helper text */
+.helper {
+    font-size: 13px;
+    color: #666;
+    margin-top: 10px;
+}
+
+/* FORCE button background color */
 div.stButton > button {
     background-color: #3f51b5 !important;
     color: white !important;
-    border-radius: 6px !important;
+    border: none !important;
+    border-radius: 5px !important;
     height: 42px !important;
     font-weight: 600 !important;
+}
+
+/* Hover state */
+div.stButton > button:hover {
+    background-color: #303f9f !important;
+    color: white !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -92,20 +121,27 @@ div.stButton > button {
 st.markdown("""
 <div class="topbar">
     <div>TechVortex</div>
-    <div>Logout</div>
+    <div class="logout">Logout</div>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="card">', unsafe_allow_html=True)
-
 # ------------------------------------------------
-# GROQ CLIENT
+# GROQ SETUP
 # ------------------------------------------------
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except Exception:
-    st.error("GROQ_API_KEY not configured.")
+    st.error("⚠ GROQ_API_KEY not configured.")
     st.stop()
+
+# ------------------------------------------------
+# SESSION STATE
+# ------------------------------------------------
+st.session_state.setdefault("text_key", 0)
+st.session_state.setdefault("initial_story", None)
+st.session_state.setdefault("chat_history", [])
+st.session_state.setdefault("followup_input", "")
+st.session_state.setdefault("draft", "")
 
 # ------------------------------------------------
 # HELPERS
@@ -115,25 +151,28 @@ def extract_text(file):
     if file.type == "application/pdf":
         reader = PdfReader(file)
         for page in reader.pages:
-            content = page.extract_text()
-            if content:
-                text += content + "\n"
+            if page.extract_text():
+                text += page.extract_text() + "\n"
     elif file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         doc = Document(file)
         for para in doc.paragraphs:
             text += para.text + "\n"
     return text
 
-
-def generate_initial_story(requirement):
+def generate_initial_story(requirement, context):
+    ctx = f"Application Context:\n{context}\n\n" if context else ""
     prompt = f"""
 You are a Senior Agile Business Analyst.
 
-Convert into:
-- Atomic User Stories
-- Acceptance Criteria (Given-When-Then)
+{ctx}
+
+Convert this requirement into:
+- Atomic user stories
+- Acceptance Criteria
 - Edge Cases
 - Assumptions
+
+STRICT FORMAT.
 
 Requirement:
 {requirement}
@@ -145,35 +184,30 @@ Requirement:
     )
     return resp.choices[0].message.content
 
-
 def generate_followup(question):
-    messages = [
-        {"role": "system", "content": "You are a Senior Agile Business Analyst."},
-        {"role": "assistant", "content": st.session_state.initial_story},
-        {"role": "user", "content": question}
-    ]
+    messages = [{"role": "system", "content": "You are a helpful AI Business Analyst."}]
+    messages.append({"role": "assistant", "content": st.session_state.initial_story})
+    for h in st.session_state.chat_history:
+        messages.append({"role": "assistant", "content": h})
+    messages.append({"role": "user", "content": question})
 
     resp = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=messages,
         temperature=0.5
     )
-
     answer = resp.choices[0].message.content
     st.session_state.chat_history.append(answer)
     return answer
 
-
+# ------------------------------------------------
+# MAIN CARD
+# ------------------------------------------------
 def clear_all():
     st.session_state.draft = ""
     st.session_state.initial_story = None
     st.session_state.chat_history = []
-    st.session_state.followup_input = ""
-
-
-# ------------------------------------------------
-# REQUIREMENT INPUT
-# ------------------------------------------------
+    
 requirement = st.session_state.draft
 words = len(requirement.split())
 chars = len(requirement)
@@ -193,9 +227,9 @@ tab_text, tab_file = st.tabs(["Text", "File"])
 with tab_text:
     requirement = st.text_area(
         "Requirement Text",
-        value=st.session_state.draft,
+        value=requirement,
         height=220,
-        key="requirement_input"
+        label_visibility="collapsed"
     )
     st.session_state.draft = requirement
 
@@ -203,37 +237,36 @@ with tab_file:
     uploaded_file = st.file_uploader("Upload .docx or .pdf", type=["docx", "pdf"])
     if uploaded_file:
         st.session_state.draft = extract_text(uploaded_file)
-        st.success("File loaded into editor")
+        st.success("File content loaded into editor")
 
 # ------------------------------------------------
-# BUTTONS
+# ACTION BUTTONS
 # ------------------------------------------------
-col1, col2, col3, col4 = st.columns([1,1,1,1])
+col1, col2, col3, col4, col5 = st.columns([1,1,1,3,1])
 
 with col1:
-    st.button("💾 Save Draft")
+    if st.button("💾 Save Draft"):
+        st.success("Draft saved")
 
 with col2:
     if st.button("🔄 Regenerate"):
-        if st.session_state.draft.strip():
-            st.session_state.initial_story = generate_initial_story(
-                st.session_state.draft
-            )
-            st.session_state.chat_history = []
+        st.session_state.initial_story = None
+        st.session_state.chat_history = []
 
 with col3:
     st.button("❌ Clear", on_click=clear_all)
 
-with col4:
+with col5:
     if st.button("✨ Generate"):
-        if st.session_state.draft.strip():
-            with st.spinner("Generating..."):
+        if requirement.strip():
+            with st.spinner("Generating user stories..."):
                 st.session_state.initial_story = generate_initial_story(
-                    st.session_state.draft
+                    requirement, ""
                 )
         else:
             st.warning("Please enter requirement text")
 
+st.markdown('<div class="helper">Tips for better results · Optional guidance</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ------------------------------------------------
@@ -243,9 +276,9 @@ if st.session_state.initial_story:
     st.markdown("## 📝 Generated User Stories")
     st.markdown(st.session_state.initial_story)
 
-    st.markdown("## 💬 Follow-up Question")
+    st.markdown("## 💬 Follow-up Questions")
     st.session_state.followup_input = st.text_area(
-        "Ask question",
+        "Ask refinement questions",
         value=st.session_state.followup_input,
         height=100
     )
@@ -260,5 +293,11 @@ if st.session_state.initial_story:
 if st.session_state.chat_history:
     st.markdown("## 🗂 Follow-up History")
     for i, h in enumerate(st.session_state.chat_history, 1):
-        st.markdown(f"**Follow-up {i}:**")
-        st.markdown(h)
+        st.markdown(f"**Follow-up {i}:** {h}")
+
+
+
+
+
+
+
