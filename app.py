@@ -15,54 +15,47 @@ st.set_page_config(
 # ------------------------------------------------
 # SESSION STATE INIT
 # ------------------------------------------------
-defaults = {
-    "draft": "",
-    "initial_story": None,
-    "chat_history": [],
-    "followup_input": "",
-    "editor_key": 0
-}
+if "draft" not in st.session_state:
+    st.session_state.draft = ""
 
-for k, v in defaults.items():
-    if k not in st.session_state:
-        st.session_state[k] = v
+if "initial_story" not in st.session_state:
+    st.session_state.initial_story = None
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+if "followup_input" not in st.session_state:
+    st.session_state.followup_input = ""
 
 # ------------------------------------------------
-# GLOBAL CSS (Modern UI - Like Screenshot 2)
+# CSS (Your original improved slightly)
 # ------------------------------------------------
 st.markdown("""
 <style>
 body {
     background: linear-gradient(135deg, #eef2f3, #e9e4f0);
 }
-[data-testid="stAppViewContainer"] {
-    background: transparent;
-}
-header { visibility: hidden; }
+header {visibility:hidden;}
 
-/* Top Navbar */
 .topbar {
     background: #3f51b5;
     color: white;
-    padding: 16px 30px;
+    padding: 14px 30px;
     font-size: 20px;
     font-weight: 600;
     display: flex;
     justify-content: space-between;
-    align-items: center;
 }
 
-/* Main Card */
 .card {
     background: white;
     border-radius: 16px;
-    padding: 30px;
-    max-width: 950px;
-    margin: 50px auto;
-    box-shadow: 0 20px 45px rgba(0,0,0,0.12);
+    padding: 25px;
+    max-width: 900px;
+    margin: 40px auto;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.1);
 }
 
-/* Header gradient */
 .card-header {
     background: linear-gradient(90deg, #1e88e5, #43a047);
     color: white;
@@ -70,12 +63,10 @@ header { visibility: hidden; }
     border-radius: 12px;
     font-size: 20px;
     font-weight: 600;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display:flex;
+    justify-content:space-between;
 }
 
-/* Counters */
 .counter {
     background: rgba(255,255,255,0.9);
     color: #333;
@@ -85,28 +76,12 @@ header { visibility: hidden; }
     margin-left: 8px;
 }
 
-/* Buttons */
 div.stButton > button {
-    border-radius: 20px !important;
-    height: 42px !important;
-    font-weight: 600 !important;
-}
-
-.primary-btn button {
     background-color: #3f51b5 !important;
     color: white !important;
-}
-
-.secondary-btn button {
-    background-color: #ede7f6 !important;
-    color: #5e35b1 !important;
-}
-
-/* Helper */
-.helper {
-    font-size: 13px;
-    color: #666;
-    margin-top: 10px;
+    border-radius: 6px !important;
+    height: 42px !important;
+    font-weight: 600 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -121,13 +96,15 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+st.markdown('<div class="card">', unsafe_allow_html=True)
+
 # ------------------------------------------------
 # GROQ CLIENT
 # ------------------------------------------------
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except Exception:
-    st.error("⚠ GROQ_API_KEY not configured.")
+    st.error("GROQ_API_KEY not configured.")
     st.stop()
 
 # ------------------------------------------------
@@ -152,13 +129,11 @@ def generate_initial_story(requirement):
     prompt = f"""
 You are a Senior Agile Business Analyst.
 
-Convert the following requirement into:
-1. Atomic User Stories
-2. Acceptance Criteria (Given-When-Then)
-3. Edge Cases
-4. Assumptions
-
-STRICT FORMAT.
+Convert into:
+- Atomic User Stories
+- Acceptance Criteria (Given-When-Then)
+- Edge Cases
+- Assumptions
 
 Requirement:
 {requirement}
@@ -174,13 +149,9 @@ Requirement:
 def generate_followup(question):
     messages = [
         {"role": "system", "content": "You are a Senior Agile Business Analyst."},
-        {"role": "assistant", "content": st.session_state.initial_story}
+        {"role": "assistant", "content": st.session_state.initial_story},
+        {"role": "user", "content": question}
     ]
-
-    for h in st.session_state.chat_history:
-        messages.append({"role": "assistant", "content": h})
-
-    messages.append({"role": "user", "content": question})
 
     resp = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
@@ -198,24 +169,11 @@ def clear_all():
     st.session_state.initial_story = None
     st.session_state.chat_history = []
     st.session_state.followup_input = ""
-    st.session_state.editor_key += 1
-    st.rerun()
 
-
-def regenerate_story():
-    if st.session_state.draft.strip():
-        st.session_state.initial_story = generate_initial_story(
-            st.session_state.draft
-        )
-        st.session_state.chat_history = []
-        st.session_state.followup_input = ""
-        st.rerun()
 
 # ------------------------------------------------
-# MAIN CARD
+# REQUIREMENT INPUT
 # ------------------------------------------------
-st.markdown('<div class="card">', unsafe_allow_html=True)
-
 requirement = st.session_state.draft
 words = len(requirement.split())
 chars = len(requirement)
@@ -237,7 +195,7 @@ with tab_text:
         "Requirement Text",
         value=st.session_state.draft,
         height=220,
-        key=f"editor_{st.session_state.editor_key}"
+        key="requirement_input"
     )
     st.session_state.draft = requirement
 
@@ -245,48 +203,49 @@ with tab_file:
     uploaded_file = st.file_uploader("Upload .docx or .pdf", type=["docx", "pdf"])
     if uploaded_file:
         st.session_state.draft = extract_text(uploaded_file)
-        st.session_state.editor_key += 1
-        st.success("File content loaded into editor")
-        st.rerun()
+        st.success("File loaded into editor")
 
 # ------------------------------------------------
-# BUTTON ROW
+# BUTTONS
 # ------------------------------------------------
-col1, col2, col3, col4, col5 = st.columns([1,1,1,2,1])
+col1, col2, col3, col4 = st.columns([1,1,1,1])
 
 with col1:
     st.button("💾 Save Draft")
 
 with col2:
-    st.button("🔄 Regenerate", on_click=regenerate_story)
+    if st.button("🔄 Regenerate"):
+        if st.session_state.draft.strip():
+            st.session_state.initial_story = generate_initial_story(
+                st.session_state.draft
+            )
+            st.session_state.chat_history = []
 
 with col3:
     st.button("❌ Clear", on_click=clear_all)
 
-with col5:
-    generate_disabled = not st.session_state.draft.strip()
-    if st.button("✨ Generate", disabled=generate_disabled):
-        with st.spinner("Generating user stories..."):
-            st.session_state.initial_story = generate_initial_story(
-                st.session_state.draft
-            )
-        st.rerun()
+with col4:
+    if st.button("✨ Generate"):
+        if st.session_state.draft.strip():
+            with st.spinner("Generating..."):
+                st.session_state.initial_story = generate_initial_story(
+                    st.session_state.draft
+                )
+        else:
+            st.warning("Please enter requirement text")
 
-st.markdown('<div class="helper">Tips for better results · Optional guidance</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ------------------------------------------------
-# OUTPUT SECTION
+# OUTPUT
 # ------------------------------------------------
 if st.session_state.initial_story:
-
     st.markdown("## 📝 Generated User Stories")
     st.markdown(st.session_state.initial_story)
 
-    st.markdown("## 💬 Follow-up Questions")
-
+    st.markdown("## 💬 Follow-up Question")
     st.session_state.followup_input = st.text_area(
-        "Ask refinement questions",
+        "Ask question",
         value=st.session_state.followup_input,
         height=100
     )
@@ -294,9 +253,9 @@ if st.session_state.initial_story:
     if st.button("Ask AI"):
         if st.session_state.followup_input.strip():
             with st.spinner("AI responding..."):
-                generate_followup(st.session_state.followup_input)
+                answer = generate_followup(st.session_state.followup_input)
             st.session_state.followup_input = ""
-            st.rerun()
+            st.markdown(answer)
 
 if st.session_state.chat_history:
     st.markdown("## 🗂 Follow-up History")
