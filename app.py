@@ -228,18 +228,19 @@ tab_text, tab_file = st.tabs(["Text", "File"])
 
 with tab_text:
     requirement = st.text_area(
-        "Requirement Text",
-        key="draft",
-        height=220,
-        label_visibility="collapsed"
-    )
-    st.session_state.draft = requirement
+    "Requirement Text",
+    key="draft",
+    height=220,
+    label_visibility="collapsed"
+)
 
 with tab_file:
     uploaded_file = st.file_uploader("Upload .docx or .pdf", type=["docx", "pdf"])
     if uploaded_file:
-        st.session_state.draft = extract_text(uploaded_file)
+        extracted_text = extract_text(uploaded_file)
+        st.session_state["draft"] = extracted_text
         st.success("File content loaded into editor")
+        st.rerun()
 
 # ------------------------------------------------
 # ACTION BUTTONS
@@ -302,6 +303,7 @@ if st.session_state.chat_history:
     st.markdown("## 🗂 Follow-up History")
     for i, h in enumerate(st.session_state.chat_history, 1):
         st.markdown(f"**Follow-up {i}:** {h}")
+
 
 
 
