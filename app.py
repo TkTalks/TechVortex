@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # ------------------------------------------------
-# GLOBAL CSS (FIXED BUTTON STYLING)
+# GLOBAL CSS (FIXED BUTTON COLORS ONLY)
 # ------------------------------------------------
 st.markdown("""
 <style>
@@ -36,8 +36,12 @@ header { visibility: hidden; }
     justify-content: space-between;
     align-items: center;
 }
+.logout {
+    font-size: 14px;
+    cursor: pointer;
+}
 
-/* Card Header */
+/* Header gradient */
 .card-header {
     background: linear-gradient(90deg, #1e88e5, #43a047);
     color: white;
@@ -48,8 +52,7 @@ header { visibility: hidden; }
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin: 30px auto 10px auto;
-    max-width: 900px;
+    margin-top: 10px;
 }
 
 /* Counters */
@@ -62,31 +65,30 @@ header { visibility: hidden; }
     margin-left: 8px;
 }
 
-/* ✅ GLOBAL BUTTON FIX */
+/* ✅ BUTTON COLOR FIX (THIS WAS MISSING) */
 div.stButton > button {
     border-radius: 20px;
-    height: 42px;
     font-weight: 600;
+    height: 42px;
     background: #ede7f6;
-    color: #4527a0;
+    color: #5e35b1;
     border: none;
 }
 div.stButton > button:hover {
     background: #d1c4e9;
 }
 
-/* Generate button highlight */
-.generate button {
+/* Highlight Generate button */
+.generate-btn div.stButton > button {
     background: #3f51b5 !important;
     color: white !important;
 }
 
-/* Helper */
+/* Footer helper text */
 .helper {
     font-size: 13px;
     color: #666;
-    max-width: 900px;
-    margin: 10px auto;
+    margin-top: 10px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -97,7 +99,7 @@ div.stButton > button:hover {
 st.markdown("""
 <div class="topbar">
     <div>TechVortex</div>
-    <div>Logout</div>
+    <div class="logout">Logout</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -107,12 +109,13 @@ st.markdown("""
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # ------------------------------------------------
-# SESSION STATE (FIXED)
+# SESSION STATE (MINIMAL FIX)
 # ------------------------------------------------
-st.session_state.setdefault("draft", "")
 st.session_state.setdefault("initial_story", None)
 st.session_state.setdefault("chat_history", [])
-st.session_state.setdefault("text_key", 0)
+st.session_state.setdefault("followup_input", "")
+st.session_state.setdefault("draft", "")
+st.session_state.setdefault("text_key", 0)  # ✅ required for Clear
 
 # ------------------------------------------------
 # HELPERS
@@ -130,7 +133,7 @@ def extract_text(file):
             text += para.text + "\n"
     return text
 
-def generate_initial_story(req):
+def generate_initial_story(requirement, context):
     prompt = f"""
 You are a Senior Agile Business Analyst.
 
@@ -143,7 +146,7 @@ Convert this requirement into:
 STRICT FORMAT.
 
 Requirement:
-{req}
+{requirement}
 """
     resp = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
@@ -153,9 +156,10 @@ Requirement:
     return resp.choices[0].message.content
 
 # ------------------------------------------------
-# HEADER
+# MAIN HEADER
 # ------------------------------------------------
 req = st.session_state.draft
+
 st.markdown(f"""
 <div class="card-header">
     <span>Provide Requirements</span>
@@ -173,9 +177,10 @@ tab_text, tab_file = st.tabs(["Text", "File"])
 
 with tab_text:
     st.session_state.draft = st.text_area(
-        "",
+        "Requirement Text",
         value=st.session_state.draft,
         height=220,
+        label_visibility="collapsed",
         key=f"text_{st.session_state.text_key}"
     )
 
@@ -183,41 +188,42 @@ with tab_file:
     uploaded_file = st.file_uploader("Upload .docx or .pdf", type=["docx", "pdf"])
     if uploaded_file:
         st.session_state.draft = extract_text(uploaded_file)
-        st.success("File loaded")
+        st.success("File content loaded into editor")
 
 # ------------------------------------------------
 # ACTION BUTTONS
 # ------------------------------------------------
-c1, c2, c3, c4, c5 = st.columns([1,1,1,3,1])
+col1, col2, col3, col4, col5 = st.columns([1,1,1,3,1])
 
-with c1:
+with col1:
     if st.button("💾 Save Draft"):
         st.success("Draft saved")
 
-with c2:
+with col2:
     if st.button("🔄 Regenerate"):
         if st.session_state.draft.strip():
             st.session_state.initial_story = generate_initial_story(
-                st.session_state.draft
+                st.session_state.draft, ""
             )
             st.session_state.chat_history = []
 
-with c3:
+with col3:
     if st.button("❌ Clear"):
         st.session_state.draft = ""
         st.session_state.initial_story = None
         st.session_state.chat_history = []
-        st.session_state.text_key += 1  # ✅ force reset
+        st.session_state.text_key += 1  # ✅ forces textarea reset
 
-with c5:
-    st.markdown('<div class="generate">', unsafe_allow_html=True)
+with col5:
+    st.markdown('<div class="generate-btn">', unsafe_allow_html=True)
     if st.button("✨ Generate"):
         if st.session_state.draft.strip():
-            st.session_state.initial_story = generate_initial_story(
-                st.session_state.draft
-            )
+            with st.spinner("Generating user stories..."):
+                st.session_state.initial_story = generate_initial_story(
+                    st.session_state.draft, ""
+                )
         else:
-            st.warning("Enter requirement text")
+            st.warning("Please enter requirement text")
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('<div class="helper">Tips for better results · Optional guidance</div>', unsafe_allow_html=True)
