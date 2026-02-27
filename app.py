@@ -207,6 +207,8 @@ def clear_all():
     st.session_state.draft = ""
     st.session_state.initial_story = None
     st.session_state.chat_history = []
+    st.session_state.followup_input = ""
+    st.rerun()
     
 requirement = st.session_state.draft
 words = len(requirement.split())
@@ -227,7 +229,7 @@ tab_text, tab_file = st.tabs(["Text", "File"])
 with tab_text:
     requirement = st.text_area(
         "Requirement Text",
-        value=requirement,
+        key="draft",
         height=220,
         label_visibility="collapsed"
     )
@@ -250,15 +252,21 @@ with col1:
 
 with col2:
     if st.button("🔄 Regenerate"):
-        st.session_state.initial_story = None
-        st.session_state.chat_history = []
+        if st.session_state.draft.strip():
+            with st.spinner("Regenerating user stories..."):
+                st.session_state.initial_story = generate_initial_story(
+                    st.session_state.draft, ""
+                )
+            st.session_state.chat_history = []
+        else:
+            st.warning("Please enter requirement text")
 
 with col3:
     st.button("❌ Clear", on_click=clear_all)
 
 with col5:
     if st.button("✨ Generate"):
-        if requirement.strip():
+        if st.session_state.draft.strip():
             with st.spinner("Generating user stories..."):
                 st.session_state.initial_story = generate_initial_story(
                     requirement, ""
@@ -294,6 +302,7 @@ if st.session_state.chat_history:
     st.markdown("## 🗂 Follow-up History")
     for i, h in enumerate(st.session_state.chat_history, 1):
         st.markdown(f"**Follow-up {i}:** {h}")
+
 
 
 
