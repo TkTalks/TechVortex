@@ -8,7 +8,7 @@ from PyPDF2 import PdfReader
 # ------------------------------------------------
 st.set_page_config(
     page_title="TechVortex",
-    page_icon="🚀",
+    page_icon="💡",
     layout="wide"
 )
 
@@ -185,7 +185,6 @@ def generate_followup(question):
 # ------------------------------------------------
 # MAIN CARD
 # ------------------------------------------------
-st.markdown('<div class="card">', unsafe_allow_html=True)
 
 requirement = st.session_state.draft
 words = len(requirement.split())
@@ -276,3 +275,4 @@ if st.session_state.chat_history:
     st.markdown("## 🗂 Follow-up History")
     for i, h in enumerate(st.session_state.chat_history, 1):
         st.markdown(f"**Follow-up {i}:** {h}")
+
