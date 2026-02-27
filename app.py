@@ -148,15 +148,21 @@ st.session_state.setdefault("draft", "")
 # ------------------------------------------------
 def extract_text(file):
     text = ""
+
     if file.type == "application/pdf":
         reader = PdfReader(file)
         for page in reader.pages:
             if page.extract_text():
                 text += page.extract_text() + "\n"
+
     elif file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         doc = Document(file)
         for para in doc.paragraphs:
             text += para.text + "\n"
+
+    elif file.type == "text/plain":
+        text = file.read().decode("utf-8")
+
     return text
 
 def generate_initial_story(requirement, context):
@@ -204,11 +210,10 @@ def generate_followup(question):
 # MAIN CARD
 # ------------------------------------------------
 def clear_all():
-    st.session_state.draft = ""
-    st.session_state.initial_story = None
-    st.session_state.chat_history = []
-    st.session_state.followup_input = ""
-    st.rerun()
+    st.session_state["draft"] = ""
+    st.session_state["initial_story"] = None
+    st.session_state["chat_history"] = []
+    st.session_state["followup_input"] = ""
     
 requirement = st.session_state.draft
 words = len(requirement.split())
@@ -235,12 +240,11 @@ with tab_text:
 )
 
 with tab_file:
-    uploaded_file = st.file_uploader("Upload .docx or .pdf", type=["docx", "pdf"])
+    uploaded_file = st.file_uploader("Upload .docx or .pdf or .txt", type=["docx", "pdf", "txt"])
     if uploaded_file:
         extracted_text = extract_text(uploaded_file)
         st.session_state["draft"] = extracted_text
         st.success("File content loaded into editor")
-        st.rerun()
 
 # ------------------------------------------------
 # ACTION BUTTONS
@@ -303,6 +307,7 @@ if st.session_state.chat_history:
     st.markdown("## 🗂 Follow-up History")
     for i, h in enumerate(st.session_state.chat_history, 1):
         st.markdown(f"**Follow-up {i}:** {h}")
+
 
 
 
