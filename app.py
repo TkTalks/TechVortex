@@ -41,84 +41,135 @@ f"""
 <head>
 <style>
 body {{
-    font-family: Inter, sans-serif;
-    background: linear-gradient(to right, #eef2ff, #fdf2f8);
+    font-family: Roboto, sans-serif;
+    background: linear-gradient(to right, #eef2ff, #f8fafc);
 }}
 
 .card {{
-    width: 70%;
-    margin: 40px auto;
-    background: white;
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    width: 65%;
+    margin: 60px auto;
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 28px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
 }}
 
 .header {{
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: linear-gradient(to right, #1d4ed8, #22c55e);
-    padding: 16px;
+    background: linear-gradient(90deg, #1e88e5, #43a047);
+    padding: 18px 22px;
+    border-radius: 14px;
     color: white;
-    border-radius: 12px;
+}}
+
+.header h3 {{
+    margin: 0;
+    font-weight: 600;
+}}
+
+.stats {{
+    display: flex;
+    gap: 12px;
 }}
 
 .stats span {{
     background: white;
-    color: black;
-    padding: 6px 14px;
-    border-radius: 20px;
-    margin-left: 8px;
+    color: #333;
+    padding: 6px 16px;
+    border-radius: 22px;
     font-size: 14px;
+    font-weight: 500;
+}}
+
+.tabs {{
+    display: flex;
+    justify-content: center;
+    margin-top: 24px;
+    margin-bottom: 10px;
+    gap: 80px;
+    font-weight: 500;
+    color: #555;
+}}
+
+.tabs div {{
+    cursor: pointer;
 }}
 
 textarea {{
     width: 100%;
-    height: 180px;
+    height: 220px;
     border-radius: 10px;
-    border: 2px solid #2563eb;
-    padding: 12px;
+    border: 2px solid #3f51b5;
+    padding: 14px;
     font-size: 15px;
+    resize: none;
+}}
+
+textarea:focus {{
+    outline: none;
+    border: 2px solid #1e88e5;
 }}
 
 .buttons {{
     display: flex;
-    justify-content: space-between;
-    margin-top: 20px;
+    align-items: center;
+    margin-top: 22px;
+}}
+
+.left-buttons {{
+    display: flex;
+    gap: 12px;
+}}
+
+.right-buttons {{
+    margin-left: auto;
+    display: flex;
+    gap: 12px;
 }}
 
 button {{
-    border-radius: 10px;
-    padding: 10px 18px;
+    border-radius: 8px;
+    padding: 8px 18px;
     font-size: 14px;
     cursor: pointer;
-}}
-
-.primary {{
-    background: #2563eb;
-    color: white;
     border: none;
 }}
 
-.secondary {{
-    background: #6366f1;
+.save {{
+    background: #1e88e5;
     color: white;
-    border: none;
+}}
+
+.regen {{
+    background: #5e35b1;
+    color: white;
 }}
 
 .clear {{
     background: white;
-    border: 1px solid red;
-    color: red;
+    border: 1px solid #e53935;
+    color: #e53935;
+}}
+
+.back {{
+    background: transparent;
+    color: #333;
+}}
+
+.generate {{
+    background: #3949ab;
+    color: white;
 }}
 
 .output {{
     white-space: pre-wrap;
-    background: #f8fafc;
-    padding: 20px;
-    border-radius: 12px;
+    background: #f4f6fa;
+    padding: 22px;
+    border-radius: 14px;
     margin-top: 30px;
+    border: 1px solid #e0e0e0;
 }}
 </style>
 
@@ -143,24 +194,37 @@ function updateCount() {{
     </div>
   </div>
 
-  <br>
+  <div class="tabs">
+    <div style="color:#3f51b5; border-bottom:2px solid #3f51b5;">Text</div>
+    <div>File</div>
+  </div>
+
   <textarea id="req" oninput="updateCount()"
-  placeholder="System must support biometric login..."></textarea>
+  placeholder="System must support biometric login for mobile app..."></textarea>
 
   <div class="buttons">
-    <button class="secondary">Save Draft</button>
-    <button class="clear" onclick="document.getElementById('req').value=''">
-      Clear
-    </button>
-    <form method="post">
-      <input type="hidden" name="reqText"
-        value="" id="hiddenText">
-      <button class="primary"
-        onclick="document.getElementById('hiddenText').value =
-        document.getElementById('req').value;">
-        Generate
+    <div class="left-buttons">
+      <button class="save">💾 Save Draft</button>
+      <button class="regen">🔄 Regenerate</button>
+      <button class="clear"
+        onclick="document.getElementById('req').value=''; updateCount();">
+        ✖ Clear
       </button>
-    </form>
+    </div>
+
+    <div class="right-buttons">
+      <button class="back">← Back</button>
+
+      <form method="post">
+        <input type="hidden" name="reqText"
+        value="" id="hiddenText">
+        <button class="generate"
+          onclick="document.getElementById('hiddenText').value =
+          document.getElementById('req').value;">
+          ✨ Generate
+        </button>
+      </form>
+    </div>
   </div>
 
   {"<div class='output'>" + st.session_state.result + "</div>" if st.session_state.result else ""}
@@ -169,6 +233,10 @@ function updateCount() {{
 </body>
 </html>
 """,
+height=950,
+scrolling=True,
+)
 height=900,
 scrolling=True,
 )
+
