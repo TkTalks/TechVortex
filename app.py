@@ -204,7 +204,6 @@ def generate_followup(question):
 # MAIN CARD
 # ------------------------------------------------
 def clear_all():
-    st.session_state.text_key += 1
     st.session_state.draft = ""
     st.session_state.initial_story = None
     st.session_state.chat_history = []
@@ -295,6 +294,7 @@ if st.session_state.chat_history:
     st.markdown("## 🗂 Follow-up History")
     for i, h in enumerate(st.session_state.chat_history, 1):
         st.markdown(f"**Follow-up {i}:** {h}")
+
 
 
 
