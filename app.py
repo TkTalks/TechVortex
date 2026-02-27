@@ -231,20 +231,25 @@ st.markdown(f"""
 
 tab_text, tab_file = st.tabs(["Text", "File"])
 
-with tab_text:
-    requirement = st.text_area(
-    "Requirement Text",
-    key="draft",
-    height=220,
-    label_visibility="collapsed"
-)
+uploaded_file = None
 
 with tab_file:
-    uploaded_file = st.file_uploader("Upload .docx or .pdf or .txt", type=["docx", "pdf", "txt"])
-    if uploaded_file:
-        extracted_text = extract_text(uploaded_file)
-        st.session_state["draft"] = extracted_text
-        st.success("File content loaded into editor")
+    uploaded_file = st.file_uploader(
+        "Upload .docx or .pdf or .txt",
+        type=["docx", "pdf", "txt"]
+    )
+
+# ✅ Update session state BEFORE rendering text_area
+if uploaded_file:
+    st.session_state["draft"] = extract_text(uploaded_file)
+
+with tab_text:
+    requirement = st.text_area(
+        "Requirement Text",
+        key="draft",
+        height=220,
+        label_visibility="collapsed"
+    )
 
 # ------------------------------------------------
 # ACTION BUTTONS
@@ -273,9 +278,7 @@ with col5:
     if st.button("✨ Generate"):
         if st.session_state.draft.strip():
             with st.spinner("Generating user stories..."):
-                st.session_state.initial_story = generate_initial_story(
-                    requirement, ""
-                )
+                st.session_state.initial_story = generate_initial_story(st.session_state.draft, "")
         else:
             st.warning("Please enter requirement text")
 
@@ -307,6 +310,7 @@ if st.session_state.chat_history:
     st.markdown("## 🗂 Follow-up History")
     for i, h in enumerate(st.session_state.chat_history, 1):
         st.markdown(f"**Follow-up {i}:** {h}")
+
 
 
 
