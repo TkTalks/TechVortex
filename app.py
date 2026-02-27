@@ -142,6 +142,7 @@ st.session_state.setdefault("initial_story", None)
 st.session_state.setdefault("chat_history", [])
 st.session_state.setdefault("followup_input", "")
 st.session_state.setdefault("draft", "")
+st.session_state.setdefault("last_uploaded", None)
 
 # ------------------------------------------------
 # HELPERS
@@ -236,12 +237,14 @@ uploaded_file = None
 with tab_file:
     uploaded_file = st.file_uploader(
         "Upload .docx or .pdf or .txt",
-        type=["docx", "pdf", "txt"]
+        type=["docx", "pdf", "txt"],
+        key="file_uploader"
     )
 
-# ✅ Update session state BEFORE rendering text_area
-if uploaded_file:
-    st.session_state["draft"] = extract_text(uploaded_file)
+    # Only update draft if new file uploaded
+    if uploaded_file and st.session_state.get("last_uploaded") != uploaded_file.name:
+        st.session_state["draft"] = extract_text(uploaded_file)
+        st.session_state["last_uploaded"] = uploaded_file.name
 
 with tab_text:
     requirement = st.text_area(
@@ -310,6 +313,7 @@ if st.session_state.chat_history:
     st.markdown("## 🗂 Follow-up History")
     for i, h in enumerate(st.session_state.chat_history, 1):
         st.markdown(f"**Follow-up {i}:** {h}")
+
 
 
 
