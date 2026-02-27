@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # ------------------------------------------------
-# GLOBAL CSS (FIXED BUTTON COLORS ONLY)
+# GLOBAL CSS (Screenshot-matched UI)
 # ------------------------------------------------
 st.markdown("""
 <style>
@@ -41,6 +41,16 @@ header { visibility: hidden; }
     cursor: pointer;
 }
 
+/* Main Card */
+.card {
+    background: white;
+    border-radius: 16px;
+    padding: 25px;
+    max-width: 900px;
+    margin: 40px auto;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+}
+
 /* Header gradient */
 .card-header {
     background: linear-gradient(90deg, #1e88e5, #43a047);
@@ -65,23 +75,19 @@ header { visibility: hidden; }
     margin-left: 8px;
 }
 
-/* ✅ BUTTON COLOR FIX (THIS WAS MISSING) */
-div.stButton > button {
-    border-radius: 20px;
+/* Buttons */
+.action-btn button {
+    border-radius: 20px !important;
     font-weight: 600;
     height: 42px;
-    background: #ede7f6;
-    color: #5e35b1;
-    border: none;
 }
-div.stButton > button:hover {
-    background: #d1c4e9;
-}
-
-/* Highlight Generate button */
-.generate-btn div.stButton > button {
+.generate-btn button {
     background: #3f51b5 !important;
     color: white !important;
+}
+.secondary-btn button {
+    background: #ede7f6 !important;
+    color: #5e35b1 !important;
 }
 
 /* Footer helper text */
@@ -106,16 +112,19 @@ st.markdown("""
 # ------------------------------------------------
 # GROQ SETUP
 # ------------------------------------------------
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+try:
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+except Exception:
+    st.error("⚠ GROQ_API_KEY not configured.")
+    st.stop()
 
 # ------------------------------------------------
-# SESSION STATE (MINIMAL FIX)
+# SESSION STATE
 # ------------------------------------------------
 st.session_state.setdefault("initial_story", None)
 st.session_state.setdefault("chat_history", [])
 st.session_state.setdefault("followup_input", "")
 st.session_state.setdefault("draft", "")
-st.session_state.setdefault("text_key", 0)  # ✅ required for Clear
 
 # ------------------------------------------------
 # HELPERS
@@ -127,15 +136,18 @@ def extract_text(file):
         for page in reader.pages:
             if page.extract_text():
                 text += page.extract_text() + "\n"
-    else:
+    elif file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         doc = Document(file)
         for para in doc.paragraphs:
             text += para.text + "\n"
     return text
 
 def generate_initial_story(requirement, context):
+    ctx = f"Application Context:\n{context}\n\n" if context else ""
     prompt = f"""
 You are a Senior Agile Business Analyst.
+
+{ctx}
 
 Convert this requirement into:
 - Atomic user stories
@@ -155,34 +167,50 @@ Requirement:
     )
     return resp.choices[0].message.content
 
+def generate_followup(question):
+    messages = [{"role": "system", "content": "You are a helpful AI Business Analyst."}]
+    messages.append({"role": "assistant", "content": st.session_state.initial_story})
+    for h in st.session_state.chat_history:
+        messages.append({"role": "assistant", "content": h})
+    messages.append({"role": "user", "content": question})
+
+    resp = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=messages,
+        temperature=0.5
+    )
+    answer = resp.choices[0].message.content
+    st.session_state.chat_history.append(answer)
+    return answer
+
 # ------------------------------------------------
-# MAIN HEADER
+# MAIN CARD
 # ------------------------------------------------
-req = st.session_state.draft
+
+requirement = st.session_state.draft
+words = len(requirement.split())
+chars = len(requirement)
 
 st.markdown(f"""
 <div class="card-header">
     <span>Provide Requirements</span>
     <div>
-        <span class="counter">Words: {len(req.split())}</span>
-        <span class="counter">Characters: {len(req)}</span>
+        <span class="counter">Words: {words}</span>
+        <span class="counter">Characters: {chars}</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# ------------------------------------------------
-# INPUT TABS
-# ------------------------------------------------
 tab_text, tab_file = st.tabs(["Text", "File"])
 
 with tab_text:
-    st.session_state.draft = st.text_area(
+    requirement = st.text_area(
         "Requirement Text",
-        value=st.session_state.draft,
+        value=requirement,
         height=220,
-        label_visibility="collapsed",
-        key=f"text_{st.session_state.text_key}"
+        label_visibility="collapsed"
     )
+    st.session_state.draft = requirement
 
 with tab_file:
     uploaded_file = st.file_uploader("Upload .docx or .pdf", type=["docx", "pdf"])
@@ -201,32 +229,27 @@ with col1:
 
 with col2:
     if st.button("🔄 Regenerate"):
-        if st.session_state.draft.strip():
-            st.session_state.initial_story = generate_initial_story(
-                st.session_state.draft, ""
-            )
-            st.session_state.chat_history = []
+        st.session_state.initial_story = None
+        st.session_state.chat_history = []
 
 with col3:
     if st.button("❌ Clear"):
         st.session_state.draft = ""
         st.session_state.initial_story = None
         st.session_state.chat_history = []
-        st.session_state.text_key += 1  # ✅ forces textarea reset
 
 with col5:
-    st.markdown('<div class="generate-btn">', unsafe_allow_html=True)
     if st.button("✨ Generate"):
-        if st.session_state.draft.strip():
+        if requirement.strip():
             with st.spinner("Generating user stories..."):
                 st.session_state.initial_story = generate_initial_story(
-                    st.session_state.draft, ""
+                    requirement, ""
                 )
         else:
             st.warning("Please enter requirement text")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('<div class="helper">Tips for better results · Optional guidance</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # ------------------------------------------------
 # OUTPUT
@@ -234,3 +257,24 @@ st.markdown('<div class="helper">Tips for better results · Optional guidance</d
 if st.session_state.initial_story:
     st.markdown("## 📝 Generated User Stories")
     st.markdown(st.session_state.initial_story)
+
+    st.markdown("## 💬 Follow-up Questions")
+    st.session_state.followup_input = st.text_area(
+        "Ask refinement questions",
+        value=st.session_state.followup_input,
+        height=100
+    )
+
+    if st.button("Ask AI"):
+        if st.session_state.followup_input.strip():
+            with st.spinner("AI responding..."):
+                answer = generate_followup(st.session_state.followup_input)
+            st.session_state.followup_input = ""
+            st.markdown(answer)
+
+if st.session_state.chat_history:
+    st.markdown("## 🗂 Follow-up History")
+    for i, h in enumerate(st.session_state.chat_history, 1):
+        st.markdown(f"**Follow-up {i}:** {h}")
+
+
